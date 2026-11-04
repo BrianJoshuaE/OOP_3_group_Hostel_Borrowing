@@ -279,3 +279,706 @@ class ClubKeeper(Person):
 
 # Brian's contribution ends here: the ClubKeeper class is complete.
 # Warren's item and loan sections begin below.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# David's part: loan policies, inventory/registry/ledger, and report printing.
+# =====================================================================
+# BORROWING RULES - STRATEGY pattern (swap the policy without changing the club)
+# =====================================================================
+
+class LoanPolicy(ABC):
+    @abstractmethod
+    def max_active_loans(self) -> int:
+        """How many items one student may hold at once."""
+
+    @abstractmethod
+    def extension_days(self) -> int:
+        """How many days a single extension adds."""
+
+    def name(self) -> str:
+        return type(self).name
+
+
+class StandardPolicy(LoanPolicy):
+    def max_active_loans(self) -> int:
+        return 2
+
+    def extension_days(self) -> int:
+        return 1
+
+
+class ExamWeekPolicy(LoanPolicy):
+    def max_active_loans(self) -> int:
+        return 3
+
+    def extension_days(self) -> int:
+        return 2
+
+
+# =====================================================================
+# CONTAINERS - each class has ONE job (Single Responsibility)
+# =====================================================================
+
+class Inventory:
+    """Holds the club's items."""
+
+    def init(self):
+        self._items: Dict[str, Item] = {}
+
+    def add(self, item: Item) -> None:
+        if item.item_id in self._items:
+            raise ValidationError(f"Item {item.item_id} already exists.")
+        self._items[item.item_id] = item
+
+    def remove(self, item_id: str) -> Item:
+        item = self.get(item_id)
+        if item.status == ItemStatus.ON_LOAN:
+            raise InvalidStateError("Cannot remove an item that is on loan.")
+        return self._items.pop(item_id)
+
+    def get(self, item_id: str) -> Item:
+        try:
+            return self._items[item_id.strip().upper()]
+        except KeyError:
+            raise ItemNotFoundError(f"No item with ID '{item_id}'.") from None
+
+    def all(self) -> List[Item]:
+        return sorted(self._items.values())
+
+    def by_status(self, status: ItemStatus) -> List[Item]:
+        return [i for i in self.all() if i.status == status]
+
+    def search(self, keyword: str) -> List[Item]:
+        keyword = keyword.lower()
+        return [i for i in self.all() if keyword in i.name.lower()]
+
+    def len(self) -> int:
+        return len(self._items)
+
+    def iter(self):
+        return iter(self.all())
+
+
+class StudentRegistry:
+    """Holds registered students."""
+
+    def init(self):
+        self._students: Dict[str, Student] = {}
+
+    def register(self, student: Student) -> None:
+        if student.person_id in self._students:
+            raise ValidationError(f"Student {student.person_id} is already registered.")
+        self._students[student.person_id] = student
+
+    def get(self, student_id: str) -> Student:
+        try:
+            return self._students[student_id.strip()]
+        except KeyError:
+            raise NotRegisteredError(f"Student '{student_id}' is not registered.") from None
+
+    def all(self) -> List[Student]:
+        return sorted(self._students.values())
+
+    def len(self) -> int:
+        return len(self._students)
+
+
+class WaitingList:
+    """Queue of students waiting for an item that is currently unavailable."""
+
+    def init(self):
+        self._queues: Dict[str, List[Student]] = {}
+
+    def join(self, item: Item, student: Student) -> None:
+        queue = self._queues.setdefault(item.item_id, [])
+        if student in queue:
+            raise ValidationError(f"{student.name} is already waiting for {item.name}.")
+        queue.append(student)
+
+    def leave(self, item: Item, student: Student) -> None:
+        queue = self._queues.get(item.item_id, [])
+        if student in queue:
+            queue.remove(student)
+
+    def waiting_for(self, item: Item) -> List[Student]:
+        return list(self._queues.get(item.item_id, []))
+
+    def next_in_line(self, item: Item) -> Optional[Student]:
+        queue = self._queues.get(item.item_id, [])
+        return queue[0] if queue else None
+
+
+class LoanLedger:
+    """Stores active loans and the immutable history of closed ones."""
+
+    def init(self):
+        self._active: Dict[str, Loan] = {}          # item_id -> live Loan
+        self._closed: List[LoanRecord] = []         # never modified after being added
+
+    def open_loan(self, loan: Loan) -> None:
+        self._active[loan.item.item_id] = loan
+
+    def close_loan(self, loan: Loan) -> None:
+        del self._active[loan.item.item_id]
+        self._closed.append(loan.to_record())
+
+    def active_loan_for(self, item_id: str) -> Optional[Loan]:
+        return self._active.get(item_id)
+
+    def active_loans(self) -> List[Loan]:
+        return sorted(self._active.values(), key=lambda l: l.borrowed_at)
+
+    def active_loans_of(self, student_id: str) -> List[Loan]:
+        return [l for l in self.active_loans() if l.student.person_id == student_id]
+
+    def overdue_loans(self, now: datetime) -> List[Loan]:
+        return [l for l in self.active_loans() if l.is_overdue(now)]
+
+    def overdue_loans_of(self, student_id: str, now: datetime) -> List[Loan]:
+        return [l for l in self.overdue_loans(now) if l.student.person_id == student_id]
+
+    def all_records(self) -> List[LoanRecord]:
+        live = [l.to_record() for l in self._active.values()]
+        return sorted(self._closed + live, key=lambda r: r.borrowed_at)
+
+    # OVERLOADING: one method name, behaviour chosen by the argument's type
+    @singledispatchmethod
+    def history_of(self, target) -> List[LoanRecord]:
+        raise TypeError("history_of expects a Student or an Item.")
+
+    @history_of.register(Student)
+    def _(self, target: Student) -> List[LoanRecord]:
+        return [r for r in self.all_records() if r.student_id == target.person_id]
+
+    @history_of.register(Item)
+    def _(self, target: Item) -> List[LoanRecord]:
+        return [r for r in self.all_records() if r.item_id == target.item_id]
+
+    def most_borrowed(self, top: int = 3) -> List[UsageStat]:
+        counts = Counter((r.item_id, r.item_name) for r in self.all_records())
+        return [UsageStat(i, n, c, "borrowed") for (i, n), c in counts.most_common(top)]
+
+    def most_damaged(self, top: int = 3) -> List[UsageStat]:
+        counts = Counter((r.item_id, r.item_name)
+                         for r in self.all_records() if r.returned_damaged)
+        return [UsageStat(i, n, c, "returned damaged") for (i, n), c in counts.most_common(top)]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# David's part continues: the duck-typed report printer.
+# =====================================================================
+# REPORT PRINTER - DUCK TYPING in action
+# =====================================================================
+
+class ReportPrinter:
+    """
+    Prints anything that has a summary() method. Items, Loans, LoanRecords,
+    Students and UsageStats share NO common parent - they only share the
+    behaviour "I can summarise myself". That is duck typing.
+    """
+
+    @staticmethod
+    def show(title: str, things) -> None:
+        print(f"\n--- {title} ---")
+        things = list(things)
+        if not things:
+            print("  (none)")
+        for number, thing in enumerate(things, start=1):
+            print(f"  {number}. {thing.summary()}")
