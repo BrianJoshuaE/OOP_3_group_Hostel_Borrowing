@@ -281,305 +281,305 @@ class ClubKeeper(Person):
 # Warren's item and loan sections begin below.
 
 
+# Warren's part: item types, loan tracking, and loan-history records.
+# =====================================================================
+# ITEMS - ABSTRACTION + INHERITANCE + POLYMORPHISM
+# =====================================================================
+
+class Item(ABC):
+    """Abstract item. Subclasses decide their own loan period (POLYMORPHISM)."""
+
+    CATEGORY = "General"        # class-level attribute (overridden by subclasses)
+    _id_counter = 0             # shared by ALL items (STATIC MEMBER)
+
+    def __init__(self, name: str, condition: ItemCondition = ItemCondition.GOOD,
+                 item_id: Optional[str] = None):
+        self._item_id = item_id or Item._next_id()
+        self._name = Validator.non_empty(name, "Item name")
+        self._condition = ItemCondition.GOOD
+        self.condition = condition
+        self._status = ItemStatus.AVAILABLE
+
+    @staticmethod
+    def _next_id() -> str:
+        Item._id_counter += 1
+        return f"ITM-{Item._id_counter:03d}"
+
+    # GETTERS / SETTERS
+    @property
+    def item_id(self) -> str:
+        return self._item_id
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self._name = Validator.non_empty(value, "Item name")
+
+    @property
+    def category(self) -> str:
+        return self.CATEGORY
 
+    @property
+    def condition(self) -> ItemCondition:
+        return self._condition
 
+    @condition.setter
+    def condition(self, value: ItemCondition) -> None:
+        if not isinstance(value, ItemCondition):
+            raise ValidationError("Condition must be an ItemCondition value.")
+        self._condition = value
 
+    @property
+    def status(self) -> ItemStatus:          # read-only: only lifecycle methods change it
+        return self._status
 
+    @abstractmethod
+    def loan_period_days(self) -> int:
+        """How many days this kind of item may be borrowed."""
 
+    def is_available(self) -> bool:
+        return self._status == ItemStatus.AVAILABLE
 
+    # OBJECT LIFECYCLE: available -> on loan -> available / under repair -> retired
+    def mark_on_loan(self) -> None:
+        if not self.is_available():
+            raise ItemUnavailableError(f"'{self._name}' is {self._status.value.lower()}.")
+        self._status = ItemStatus.ON_LOAN
 
+    def mark_returned(self, condition: ItemCondition) -> None:
+        if self._status != ItemStatus.ON_LOAN:
+            raise InvalidStateError(f"'{self._name}' is not on loan.")
+        self.condition = condition
+        self._status = (ItemStatus.UNDER_REPAIR if condition == ItemCondition.DAMAGED
+                        else ItemStatus.AVAILABLE)
 
+    def send_for_repair(self) -> None:
+        if self._status != ItemStatus.AVAILABLE:
+            raise InvalidStateError("Only an available item can be sent for repair.")
+        self._status = ItemStatus.UNDER_REPAIR
+
+    def complete_repair(self, condition: ItemCondition) -> None:
+        if self._status != ItemStatus.UNDER_REPAIR:
+            raise InvalidStateError(f"'{self._name}' is not under repair.")
+        if condition == ItemCondition.DAMAGED:
+            raise ValidationError("A repaired item cannot still be DAMAGED.")
+        self.condition = condition
+        self._status = ItemStatus.AVAILABLE
+
+    def retire(self) -> None:
+        if self._status == ItemStatus.ON_LOAN:
+            raise InvalidStateError("Cannot retire an item that is on loan.")
+        self._status = ItemStatus.RETIRED
+
+    def describe(self) -> str:
+        return self._name
+
+    def summary(self) -> str:
+        return (f"{self._item_id} | {self.describe()} | {self.category} | "
+                f"{self._condition.name} | {self._status.value}")
+
+    # EQUALITY & SORTING
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Item) and self._item_id == other._item_id
 
+    def __hash__(self) -> int:
+        return hash(self._item_id)
 
+    def __lt__(self, other: "Item") -> bool:
+        return self._item_id < other._item_id
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self._item_id!r}, {self._name!r})"
 
 
+class ElectricalItem(Item):
+    CATEGORY = "Electrical"
 
+    def __init__(self, name: str, condition: ItemCondition = ItemCondition.GOOD,
+                 item_id: Optional[str] = None, wattage: Optional[int] = None):
+        super().__init__(name, condition, item_id)
+        self._wattage = wattage
 
+    def loan_period_days(self) -> int:      # POLYMORPHISM
+        return 2
 
+    def describe(self) -> str:              # method overriding
+        extra = f" ({self._wattage}W)" if self._wattage else ""
+        return f"{self._name}{extra}"
 
 
+class ToolItem(Item):
+    CATEGORY = "Tools"
 
+    def loan_period_days(self) -> int:
+        return 3
 
 
+class KitchenItem(Item):
+    CATEGORY = "Kitchen"
 
+    def loan_period_days(self) -> int:
+        return 1
 
 
+class AcademicItem(Item):
+    CATEGORY = "Academic"
 
+    def loan_period_days(self) -> int:
+        return 7
 
 
+class SportsItem(Item):
+    CATEGORY = "Sports"
+
+    def loan_period_days(self) -> int:
+        return 2
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+
+# =====================================================================
+# LOANS - the tracking record
+# =====================================================================
+
+@dataclass(frozen=True)
+class LoanRecord:
+    """IMMUTABLE snapshot of a loan - history can never be edited."""
+    loan_id: str
+    item_id: str
+    item_name: str
+    student_id: str
+    student_name: str
+    address: str
+    borrowed_at: datetime
+    due_at: datetime
+    returned_at: Optional[datetime]
+    condition_out: ItemCondition
+    condition_in: Optional[ItemCondition]
+    issued_by: str
+    received_by: Optional[str]
+    extensions: int
+
+    @property
+    def was_late(self) -> bool:
+        return self.returned_at is not None and self.returned_at > self.due_at
+
+    @property
+    def returned_damaged(self) -> bool:
+        return self.condition_in == ItemCondition.DAMAGED
+
+    def summary(self) -> str:
+        if self.returned_at is None:
+            state = "STILL OUT"
+        else:
+            state = f"returned {Clock.fmt(self.returned_at)} as {self.condition_in.name}"
+            if self.was_late:
+                state += " (LATE)"
+        return (f"{self.loan_id} | {self.item_name} | {self.student_name} "
+                f"({self.address}) | out {Clock.fmt(self.borrowed_at)} "
+                f"as {self.condition_out.name} | due {Clock.fmt(self.due_at)} | {state}")
+
+
+class Loan:
+    """A live loan. COMPOSITION: a Loan holds an Item and a Student."""
+
+    MAX_EXTENSIONS = 1          # class-level rule
+    _counter = 0
+
+    def __init__(self, item: Item, student: Student, issued_by: ClubKeeper,
+                 borrowed_at: datetime, due_at: datetime):
+        Loan._counter += 1
+        self._loan_id = f"LN-{Loan._counter:04d}"
+        self._item = item
+        self._student = student
+        self._issued_by = issued_by.name
+        self._borrowed_at = borrowed_at
+        self._due_at = due_at
+        self._condition_out = item.condition        # condition at checkout
+        self._returned_at: Optional[datetime] = None
+        self._condition_in: Optional[ItemCondition] = None
+        self._received_by: Optional[str] = None
+        self._extensions = 0
+
+    @property
+    def loan_id(self) -> str:
+        return self._loan_id
+
+    @property
+    def item(self) -> Item:
+        return self._item
+
+    @property
+    def student(self) -> Student:
+        return self._student
+
+    @property
+    def borrowed_at(self) -> datetime:
+        return self._borrowed_at
+
+    @property
+    def due_at(self) -> datetime:
+        return self._due_at
+
+    @property
+    def is_active(self) -> bool:
+        return self._returned_at is None
+
+    def is_overdue(self, now: Optional[datetime] = None) -> bool:
+        return self.is_active and (now or Clock.now()) > self._due_at
+
+    def extend(self, extra_days: int) -> None:
+        if self._extensions >= Loan.MAX_EXTENSIONS:
+            raise ExtensionError("This loan has already been extended once.")
+        self._due_at += timedelta(days=extra_days)
+        self._extensions += 1
+
+    def close(self, condition: ItemCondition, keeper: ClubKeeper,
+              returned_at: datetime) -> None:
+        if not self.is_active:
+            raise InvalidStateError("This loan is already closed.")
+        if returned_at < self._borrowed_at:
+            raise ValidationError("Return time cannot be before borrow time.")
+        self._returned_at = returned_at
+        self._condition_in = condition
+        self._received_by = keeper.name
+
+    def to_record(self) -> LoanRecord:
+        return LoanRecord(
+            self._loan_id, self._item.item_id, self._item.name,
+            self._student.person_id, self._student.name, self._student.address,
+            self._borrowed_at, self._due_at, self._returned_at,
+            self._condition_out, self._condition_in,
+            self._issued_by, self._received_by, self._extensions,
+        )
+
+    def summary(self, now: Optional[datetime] = None) -> str:
+        if not self.is_active:
+            flag = f"RETURNED {Clock.fmt(self._returned_at)} as {self._condition_in.name}"
+            if self._returned_at > self._due_at:
+                flag += " (LATE)"
+        else:
+            flag = "OVERDUE" if self.is_overdue(now) else "ON TIME"
+        return (f"{self._loan_id} | {self._item.name} ({self._item.item_id}) -> "
+                f"{self._student.name} ({self._student.address}) | "
+                f"out {Clock.fmt(self._borrowed_at)} as {self._condition_out.name} | "
+                f"due {Clock.fmt(self._due_at)} | {flag}")
+
+
+@dataclass(frozen=True)
+class UsageStat:
+    """One line of a 'most borrowed' or 'most damaged' report."""
+    item_id: str
+    item_name: str
+    count: int
+    label: str
+
+    def summary(self) -> str:
+        return f"{self.item_name} ({self.item_id}) - {self.label} {self.count}x"
+
+# Warren's contribution ends here: loan records and usage statistics are complete.
+# David's borrowing policies and supporting collections begin below.
 
 # David's part: loan policies, inventory/registry/ledger, and report printing.
 # =====================================================================
