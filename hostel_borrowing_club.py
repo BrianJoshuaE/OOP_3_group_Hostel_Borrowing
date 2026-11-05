@@ -279,3 +279,1007 @@ class ClubKeeper(Person):
 
 # Brian's contribution ends here: the ClubKeeper class is complete.
 # Warren's item and loan sections begin below.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Akankwasa's part: the guided demo, interactive menu, and program entry point.
+# =====================================================================
+# GUIDED DEMO
+# =====================================================================
+
+def attempt(description: str, action) -> None:
+    """Run an action and show either its result or the rule that blocked it."""
+    try:
+        result = action()
+        print(f"  OK      {description}")
+        if hasattr(result, "summary"):
+            print(f"          {result.summary()}")
+    except ClubError as error:
+        print(f"  BLOCKED {description}\n          -> {type(error).__name__}: {error}")
+
+
+def run_demo() -> None:
+    print("=" * 70)
+    print(" HOSTEL BORROWING CLUB - GUIDED DEMO")
+    print("=" * 70)
+
+    club, grace = build_sample_club()
+    print(f"\nClub: {club.name} | Keeper: {grace.name} | Policy: {club.policy.name()}")
+
+    items = {i.name: i for i in club.all_items()}
+    iron, toolkit, hot_pot = items["Steam Iron"], items["Toolkit"], items["Hot Pot"]
+    calculator, football = items["Scientific Calculator"], items["Football"]
+    cord = items["Extension Cord"]
+
+    t0 = Clock.now().replace(second=0)
+    Clock.set_fixed(t0)
+    ReportPrinter.show("Registered students", club.students.all())
+    ReportPrinter.show("All items", club.all_items())
+
+    print("\n>>> Day 0: borrowing")
+    attempt("Alice borrows the iron", lambda: club.borrow_item(grace, "S001", iron.item_id, t0))
+    attempt("Alice borrows the toolkit", lambda: club.borrow_item(grace, "S001", toolkit.item_id, t0))
+    attempt("Bob borrows the hot pot", lambda: club.borrow_item(grace, "S002", hot_pot.item_id, t0))
+    attempt("Carol borrows the iron (taken)", lambda: club.borrow_item(grace, "S003", iron.item_id, t0))
+    attempt("Alice borrows a 3rd item (limit is 2)", lambda: club.borrow_item(grace, "S001", calculator.item_id, t0))
+    attempt("Unknown student S999 borrows the cord", lambda: club.borrow_item(grace, "S999", cord.item_id, t0))
+    alice = club.students.get("S001")
+    attempt("Alice tries to act as keeper", lambda: club.borrow_item(alice, "S001", cord.item_id, t0))
+
+    ReportPrinter.show("Available items", club.available_items())
+    ReportPrinter.show("Currently borrowed", club.borrowed_loans())
+    print("\nAvailability check:", club.availability_of(iron.item_id, t0))
+
+    print("\n>>> Day 0 (4 hours later): extensions and waiting list")
+    later = t0 + timedelta(hours=4)
+    Clock.set_fixed(later)
+    attempt("Alice extends the iron (first time)", lambda: club.extend_loan(grace, iron.item_id, later))
+    attempt("Alice extends the iron again", lambda: club.extend_loan(grace, iron.item_id, later))
+    attempt("Carol joins the waiting list for the toolkit",
+            lambda: club.join_waiting_list(grace, "S003", toolkit.item_id))
+    attempt("Alice extends the toolkit (Carol is waiting)",
+            lambda: club.extend_loan(grace, toolkit.item_id, later))
+
+    print("\n>>> Day 5: items are overdue")
+    day5 = t0 + timedelta(days=5)
+    Clock.set_fixed(day5)
+    ReportPrinter.show("Overdue loans", club.overdue_loans(day5))
+    attempt("Alice (overdue) tries to borrow the calculator",
+            lambda: club.borrow_item(grace, "S001", calculator.item_id, day5))
+
+    print("\n>>> Day 5: returns")
+    attempt("Alice returns the iron (GOOD)", lambda: club.return_item(grace, iron.item_id, ItemCondition.GOOD, day5))
+    attempt("Alice returns the toolkit (DAMAGED)", lambda: club.return_item(grace, toolkit.item_id, ItemCondition.DAMAGED, day5))
+    attempt("Bob returns the hot pot (FAIR)", lambda: club.return_item(grace, hot_pot.item_id, ItemCondition.FAIR, day5))
+    attempt("Bob returns the hot pot again", lambda: club.return_item(grace, hot_pot.item_id, ItemCondition.FAIR, day5))
+    ReportPrinter.show("Items needing attention", club.items_needing_attention())
+
+    print("\n>>> Day 6: repair and fair queueing")
+    day6 = t0 + timedelta(days=6)
+    Clock.set_fixed(day6)
+    attempt("Keeper repairs the toolkit", lambda: club.complete_repair(grace, toolkit.item_id, ItemCondition.GOOD))
+    attempt("Bob joins the toolkit waiting list (after Carol)",
+            lambda: club.join_waiting_list(grace, "S002", toolkit.item_id))
+    attempt("Bob tries to borrow the toolkit (Carol is first)",
+            lambda: club.borrow_item(grace, "S002", toolkit.item_id, day6))
+    attempt("Carol borrows the toolkit", lambda: club.borrow_item(grace, "S003", toolkit.item_id, day6))
+    attempt("Keeper retires the football", lambda: club.retire_item(grace, football.item_id))
+    attempt("Someone borrows the retired football", lambda: club.borrow_item(grace, "S002", football.item_id, day6))
+
+    print("\n>>> Reports")
+    ReportPrinter.show("History of Alice", club.history_of_student("S001"))
+    ReportPrinter.show("History of the toolkit", club.history_of_item(toolkit.item_id))
+    ReportPrinter.show("Most borrowed items", club.most_borrowed())
+    ReportPrinter.show("Most often returned damaged", club.most_damaged())
+    ReportPrinter.show("Final status of every item", club.all_items())
+    print("\nAvailability check:", club.availability_of(toolkit.item_id, day6))
+    print("Availability check:", club.availability_of(football.item_id, day6))
+
+    print("\n>>> Swapping the policy (Strategy pattern)")
+    club.policy = ExamWeekPolicy()
+    print(f"Policy is now {club.policy.name()}: "
+          f"max {club.policy.max_active_loans()} items per student.")
+    Clock.set_fixed(None)       # back to the real clock
+
+
+# =====================================================================
+# INTERACTIVE MENU (kept separate from the club logic)
+# =====================================================================
+
+class ConsoleApp:
+    CATEGORY_CLASSES = {
+        "1": ElectricalItem, "2": ToolItem, "3": KitchenItem,
+        "4": AcademicItem, "5": SportsItem,
+    }
+
+    def __init__(self, club: HostelBorrowingClub, keeper: ClubKeeper):
+        self._club = club
+        self._keeper = keeper
+
+    @staticmethod
+    def _ask(prompt: str) -> str:
+        return input(f"{prompt}: ").strip()
+
+    def _ask_condition(self) -> ItemCondition:
+        options = list(ItemCondition)
+        for number, cond in enumerate(options, start=1):
+            print(f"   {number}. {cond.name}")
+        choice = self._ask("Condition number")
+        if not choice.isdigit() or not 1 <= int(choice) <= len(options):
+            raise ValidationError("Please choose a valid condition number.")
+        return options[int(choice) - 1]
+
+    def _login(self) -> bool:
+        print(f"Keeper login: {self._keeper.name} (demo PIN is 1234)")
+        for _ in range(3):
+            if self._keeper.verify_pin(self._ask("Enter PIN")):
+                print("Welcome!\n")
+                return True
+            print("Wrong PIN.")
+        print("Too many attempts.")
+        return False
+
+    def run(self) -> None:
+        menu = [
+            ("Show available items", self._available),
+            ("Show all items and their condition", self._all_items),
+            ("Check one item's availability", self._check_item),
+            ("Borrow an item", self._borrow),
+            ("Return an item", self._return),
+            ("Extend a loan", self._extend),
+            ("Show borrowed items", self._borrowed),
+            ("Show overdue items", self._overdue),
+            ("Borrowing history (student or item)", self._history),
+            ("Most borrowed / most damaged", self._stats),
+            ("Register a student", self._register),
+            ("Add an item", self._add_item),
+            ("Join an item's waiting list", self._waitlist),
+        ]
+        try:
+            if not self._login():
+                return
+            while True:
+                print(f"=== {self._club.name} ===")
+                for number, (label, _) in enumerate(menu, start=1):
+                    print(f" {number:>2}. {label}")
+                print("  0. Exit")
+                choice = self._ask("Choose")
+                if choice == "0":
+                    break
+                if not choice.isdigit() or not 1 <= int(choice) <= len(menu):
+                    print("Invalid choice.\n")
+                    continue
+                try:
+                    menu[int(choice) - 1][1]()
+                except ClubError as error:
+                    print(f"\n  ! {error}")
+                print()
+        except (EOFError, KeyboardInterrupt):
+            print()
+        print("Goodbye!")
+
+    # --- menu actions
+    def _available(self):
+        ReportPrinter.show("Available items", self._club.available_items())
+
+    def _all_items(self):
+        ReportPrinter.show("All items", self._club.all_items())
+
+    def _check_item(self):
+        print(" ", self._club.availability_of(self._ask("Item ID (e.g. ITM-001)")))
+
+    def _borrow(self):
+        loan = self._club.borrow_item(self._keeper, self._ask("Student ID"),
+                                      self._ask("Item ID"))
+        print("\n  Loan recorded:\n ", loan.summary())
+
+    def _return(self):
+        item_id = self._ask("Item ID")
+        loan = self._club.return_item(self._keeper, item_id, self._ask_condition())
+        print("\n  Return recorded:\n ", loan.to_record().summary())
+
+    def _extend(self):
+        loan = self._club.extend_loan(self._keeper, self._ask("Item ID"))
+        print("\n  Extended:\n ", loan.summary())
+
+    def _borrowed(self):
+        ReportPrinter.show("Currently borrowed", self._club.borrowed_loans())
+
+    def _overdue(self):
+        ReportPrinter.show("Overdue items", self._club.overdue_loans())
+
+    def _history(self):
+        kind = self._ask("History of a (s)tudent or an (i)tem").lower()
+        if kind.startswith("s"):
+            ReportPrinter.show("Student history", self._club.history_of_student(self._ask("Student ID")))
+        else:
+            ReportPrinter.show("Item history", self._club.history_of_item(self._ask("Item ID")))
+
+    def _stats(self):
+        ReportPrinter.show("Most borrowed", self._club.most_borrowed())
+        ReportPrinter.show("Most often returned damaged", self._club.most_damaged())
+
+    def _register(self):
+        student = Student(self._ask("Student ID"), self._ask("Full name"),
+                          self._ask("Room number (e.g. B-204)"),
+                          self._ask("Block (e.g. Block B)"), self._ask("Phone"))
+        self._club.register_student(self._keeper, student)
+        print("  Registered:", student.summary())
+
+    def _add_item(self):
+        print("  1.Electrical 2.Tools 3.Kitchen 4.Academic 5.Sports")
+        cls = self.CATEGORY_CLASSES.get(self._ask("Category number"))
+        if cls is None:
+            raise ValidationError("Please choose a category from 1 to 5.")
+        item = cls(self._ask("Item name"))
+        self._club.add_item(self._keeper, item)
+        print("  Added:", item.summary())
+
+    def _waitlist(self):
+        self._club.join_waiting_list(self._keeper, self._ask("Student ID"), self._ask("Item ID"))
+        print("  Added to the waiting list.")
+
+
+# =====================================================================
+# ENTRY POINT
+# =====================================================================
+
+def main() -> None:
+    args = sys.argv[1:]
+    if "--demo" in args:
+        run_demo()
+        return
+    if "--menu" in args:
+        ConsoleApp(*build_sample_club()).run()
+        return
+
+    print("Hostel Borrowing Club")
+    print("  1. Run the guided demo")
+    print("  2. Use the interactive menu")
+    try:
+        choice = input("Choose 1 or 2: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return
+    if choice == "2":
+        ConsoleApp(*build_sample_club()).run()
+    else:
+        run_demo()
+
+
+if __name__ == "__main__":
+    main()
+
+# Akankwasa's contribution ends here: the program entry point is complete.
