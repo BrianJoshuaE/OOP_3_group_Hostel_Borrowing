@@ -622,7 +622,7 @@ class ExamWeekPolicy(LoanPolicy):
 class Inventory:
     """Holds the club's items."""
 
-    def init(self):
+    def __init__(self):
         self._items: Dict[str, Item] = {}
 
     def add(self, item: Item) -> None:
@@ -662,7 +662,7 @@ class Inventory:
 class StudentRegistry:
     """Holds registered students."""
 
-    def init(self):
+    def __init__(self):
         self._students: Dict[str, Student] = {}
 
     def register(self, student: Student) -> None:
@@ -686,7 +686,7 @@ class StudentRegistry:
 class WaitingList:
     """Queue of students waiting for an item that is currently unavailable."""
 
-    def init(self):
+    def __init__(self):
         self._queues: Dict[str, List[Student]] = {}
 
     def join(self, item: Item, student: Student) -> None:
@@ -711,7 +711,7 @@ class WaitingList:
 class LoanLedger:
     """Stores active loans and the immutable history of closed ones."""
 
-    def init(self):
+    def __init__(self):
         self._active: Dict[str, Loan] = {}          # item_id -> live Loan
         self._closed: List[LoanRecord] = []         # never modified after being added
 
