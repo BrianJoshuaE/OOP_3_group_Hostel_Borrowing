@@ -762,3 +762,223 @@ class LoanLedger:
         counts = Counter((r.item_id, r.item_name)
                          for r in self.all_records() if r.returned_damaged)
         return [UsageStat(i, n, c, "returned damaged") for (i, n), c in counts.most_common(top)]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# David's part continues: the duck-typed report printer.
+# =====================================================================
+# REPORT PRINTER - DUCK TYPING in action
+# =====================================================================
+
+class ReportPrinter:
+    """
+    Prints anything that has a summary() method. Items, Loans, LoanRecords,
+    Students and UsageStats share NO common parent - they only share the
+    behaviour "I can summarise myself". That is duck typing.
+    """
+
+    @staticmethod
+    def show(title: str, things) -> None:
+        print(f"\n--- {title} ---")
+        things = list(things)
+        if not things:
+            print("  (none)")
+        for number, thing in enumerate(things, start=1):
+            print(f"  {number}. {thing.summary()}")
