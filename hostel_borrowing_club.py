@@ -961,3 +961,34 @@ class HostelBorrowingClub:
 
 # Ninsiima's club-operations section ends here.
 # David's report-printer section follows, then Ninsiima's sample-data section.
+
+# Ninsiima's part continues: the sample data.
+# =====================================================================
+# SAMPLE DATA
+# =====================================================================
+
+def build_sample_club() -> Tuple[HostelBorrowingClub, ClubKeeper]:
+    club = HostelBorrowingClub("Greenview Hostel Borrowing Club", StandardPolicy())
+    keeper = ClubKeeper("K-01", "Grace Mwangi", "1234")
+    club.appoint_keeper(keeper)
+
+    for student in (
+        Student("S001", "Alice Njeri", "B-204", "Block B", "0712345678"),
+        Student("S002", "Bob Otieno", "A-110", "Block A", "0723456789"),
+        Student("S003", "Carol Wanjiru", "C-305", "Block C", "0734567890"),
+    ):
+        club.register_student(keeper, student)
+
+    for item in (
+        ElectricalItem("Steam Iron", wattage=1200),
+        ElectricalItem("Extension Cord"),
+        ToolItem("Toolkit"),
+        KitchenItem("Hot Pot"),
+        AcademicItem("Scientific Calculator"),
+        SportsItem("Football", ItemCondition.FAIR),
+    ):
+        club.add_item(keeper, item)
+    return club, keeper
+
+# Ninsiima's contribution ends here: the sample club and its data are defined.
+# Akankwasa's guided demo, interactive menu, and entry point begin below.
