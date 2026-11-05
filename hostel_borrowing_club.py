@@ -279,3 +279,685 @@ class ClubKeeper(Person):
 
 # Brian's contribution ends here: the ClubKeeper class is complete.
 # Warren's item and loan sections begin below.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Ninsiima's part: the main club operations and sample data.
+# =====================================================================
+# THE CLUB - COMPOSITION: it creates and owns its parts;
+#            AGGREGATION: it holds references to keepers it did not create.
+# =====================================================================
+
+class HostelBorrowingClub:
+    def __init__(self, name: str, policy: Optional[LoanPolicy] = None):
+        self._name = Validator.non_empty(name, "Club name")
+        self._policy: LoanPolicy = policy or StandardPolicy()
+        # composition: these parts live and die with the club
+        self._inventory = Inventory()
+        self._students = StudentRegistry()
+        self._ledger = LoanLedger()
+        self._waiting = WaitingList()
+        # aggregation: keepers exist independently of the club
+        self._keepers: Dict[str, ClubKeeper] = {}
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def policy(self) -> LoanPolicy:
+        return self._policy
+
+    @policy.setter
+    def policy(self, value: LoanPolicy) -> None:
+        if not isinstance(value, LoanPolicy):
+            raise ValidationError("Policy must be a LoanPolicy.")
+        self._policy = value
+
+    @property
+    def inventory(self) -> Inventory:
+        return self._inventory
+
+    @property
+    def students(self) -> StudentRegistry:
+        return self._students
+
+    @property
+    def ledger(self) -> LoanLedger:
+        return self._ledger
+
+    @property
+    def waiting_list(self) -> WaitingList:
+        return self._waiting
+
+    # ---------------- access control (DUCK TYPING) ----------------
+    def appoint_keeper(self, keeper: ClubKeeper) -> None:
+        self._keepers[keeper.person_id] = keeper
+
+    def _require(self, keeper, action: str) -> None:
+        """Accepts ANY object that has can() - no isinstance check needed."""
+        can = getattr(keeper, "can", None)
+        who = getattr(keeper, "name", "Unknown")
+        if not callable(can) or not can(action):
+            raise PermissionDeniedError(f"{who} is not allowed to perform '{action}'.")
+        if getattr(keeper, "person_id", None) not in self._keepers:
+            raise PermissionDeniedError(f"{who} is not an appointed keeper of this club.")
+
+    # ---------------- administration ----------------
+    def register_student(self, keeper, student: Student) -> None:
+        self._require(keeper, "register_student")
+        self._students.register(student)
+
+    def add_item(self, keeper, item: Item) -> None:
+        self._require(keeper, "add_item")
+        self._inventory.add(item)
+
+    def remove_item(self, keeper, item_id: str) -> Item:
+        self._require(keeper, "remove_item")
+        return self._inventory.remove(item_id)
+
+    def send_for_repair(self, keeper, item_id: str) -> None:
+        self._require(keeper, "manage_repairs")
+        self._inventory.get(item_id).send_for_repair()
+
+    def complete_repair(self, keeper, item_id: str, condition: ItemCondition) -> None:
+        self._require(keeper, "manage_repairs")
+        self._inventory.get(item_id).complete_repair(condition)
+
+    def retire_item(self, keeper, item_id: str) -> None:
+        self._require(keeper, "manage_repairs")
+        self._inventory.get(item_id).retire()
+
+    # ---------------- borrowing (rules are hidden here: ABSTRACTION) ----------------
+    def borrow_item(self, keeper, student_id: str, item_id: str,
+                    now: Optional[datetime] = None) -> Loan:
+        self._require(keeper, "issue_loan")
+        now = now or Clock.now()
+        student = self._students.get(student_id)
+        item = self._inventory.get(item_id)
+
+        if not item.is_available():
+            raise ItemUnavailableError(f"'{item.name}' is {item.status.value.lower()}.")
+
+        first = self._waiting.next_in_line(item)
+        if first is not None and first != student:
+            raise ItemUnavailableError(
+                f"'{item.name}' is reserved for {first.name}, who is first in the waiting list.")
+
+        if self._ledger.overdue_loans_of(student.person_id, now):
+            raise OverdueBlockError(f"{student.name} has overdue items and must return them first.")
+
+        limit = self._policy.max_active_loans()
+        if len(self._ledger.active_loans_of(student.person_id)) >= limit:
+            raise BorrowLimitError(f"{student.name} already holds {limit} items (limit under {self._policy.name()}).")
+
+        due = now + timedelta(days=item.loan_period_days())    # polymorphic call
+        loan = Loan(item, student, keeper, now, due)
+        item.mark_on_loan()
+        self._ledger.open_loan(loan)
+        self._waiting.leave(item, student)
+        return loan
+
+    def return_item(self, keeper, item_id: str, condition: ItemCondition,
+                    now: Optional[datetime] = None) -> Loan:
+        self._require(keeper, "receive_return")
+        now = now or Clock.now()
+        item = self._inventory.get(item_id)
+        loan = self._ledger.active_loan_for(item.item_id)
+        if loan is None:
+            raise LoanNotFoundError(f"'{item.name}' is not currently on loan.")
+        loan.close(condition, keeper, now)
+        item.mark_returned(condition)
+        self._ledger.close_loan(loan)
+        return loan
+
+    def extend_loan(self, keeper, item_id: str, now: Optional[datetime] = None) -> Loan:
+        self._require(keeper, "extend_loan")
+        now = now or Clock.now()
+        item = self._inventory.get(item_id)
+        loan = self._ledger.active_loan_for(item.item_id)
+        if loan is None:
+            raise LoanNotFoundError(f"'{item.name}' is not currently on loan.")
+        if loan.is_overdue(now):
+            raise ExtensionError("An overdue loan cannot be extended.")
+        waiting = self._waiting.waiting_for(item)
+        if waiting:
+            raise ExtensionError(f"Cannot extend: {waiting[0].name} is waiting for this item.")
+        loan.extend(self._policy.extension_days())
+        return loan
+
+    def join_waiting_list(self, keeper, student_id: str, item_id: str) -> None:
+        self._require(keeper, "manage_waitlist")
+        student = self._students.get(student_id)
+        item = self._inventory.get(item_id)
+        if item.is_available() and not self._waiting.waiting_for(item):
+            raise InvalidStateError(f"'{item.name}' is available - borrow it directly.")
+        if item.status == ItemStatus.RETIRED:
+            raise InvalidStateError(f"'{item.name}' has been retired.")
+        self._waiting.join(item, student)
+
+    # ---------------- reports ----------------
+    def availability_of(self, item_id: str, now: Optional[datetime] = None) -> str:
+        now = now or Clock.now()
+        item = self._inventory.get(item_id)
+        if item.is_available():
+            return f"{item.name} is AVAILABLE (condition: {item.condition.name})."
+        loan = self._ledger.active_loan_for(item.item_id)
+        if loan:
+            late = " It is OVERDUE." if loan.is_overdue(now) else ""
+            return (f"{item.name} is ON LOAN to {loan.student.name} "
+                    f"({loan.student.address}) until {Clock.fmt(loan.due_at)}.{late}")
+        return f"{item.name} is {item.status.value.upper()} (condition: {item.condition.name})."
+
+    def available_items(self) -> List[Item]:
+        return self._inventory.by_status(ItemStatus.AVAILABLE)
+
+    def all_items(self) -> List[Item]:
+        return self._inventory.all()
+
+    def items_needing_attention(self) -> List[Item]:
+        return (self._inventory.by_status(ItemStatus.UNDER_REPAIR)
+                + self._inventory.by_status(ItemStatus.RETIRED))
+
+    def borrowed_loans(self) -> List[Loan]:
+        return self._ledger.active_loans()
+
+    def overdue_loans(self, now: Optional[datetime] = None) -> List[Loan]:
+        return self._ledger.overdue_loans(now or Clock.now())
+
+    def history_of_student(self, student_id: str) -> List[LoanRecord]:
+        return self._ledger.history_of(self._students.get(student_id))
+
+    def history_of_item(self, item_id: str) -> List[LoanRecord]:
+        return self._ledger.history_of(self._inventory.get(item_id))
+
+    def most_borrowed(self, top: int = 3) -> List[UsageStat]:
+        return self._ledger.most_borrowed(top)
+
+    def most_damaged(self, top: int = 3) -> List[UsageStat]:
+        return self._ledger.most_damaged(top)
+
+# Ninsiima's club-operations section ends here.
+# David's report-printer section follows, then Ninsiima's sample-data section.
