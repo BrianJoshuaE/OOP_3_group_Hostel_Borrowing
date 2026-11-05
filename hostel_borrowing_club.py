@@ -596,7 +596,7 @@ class LoanPolicy(ABC):
         """How many days a single extension adds."""
 
     def name(self) -> str:
-        return type(self).name
+        return type(self).__name__
 
 
 class StandardPolicy(LoanPolicy):
@@ -652,10 +652,10 @@ class Inventory:
         keyword = keyword.lower()
         return [i for i in self.all() if keyword in i.name.lower()]
 
-    def len(self) -> int:
+    def __len__(self) -> int:
         return len(self._items)
 
-    def iter(self):
+    def __iter__(self):
         return iter(self.all())
 
 
@@ -679,7 +679,7 @@ class StudentRegistry:
     def all(self) -> List[Student]:
         return sorted(self._students.values())
 
-    def len(self) -> int:
+    def __len__(self) -> int:
         return len(self._students)
 
 
